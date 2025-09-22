@@ -34,10 +34,13 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    generate_content(client, messages, verbose)
+    generate_content(client, messages, verbose, 0)
 
 
-def generate_content(client, messages, verbose):
+def generate_content(client, messages, verbose, iteration=0):
+    if iteration == 20:
+        raise Exception("max iterations reached")
+    
     response = client.models.generate_content(
         model='gemini-2.0-flash-001', 
         contents=messages,
@@ -47,27 +50,29 @@ def generate_content(client, messages, verbose):
         )
     )
     if verbose:
-        print(f"Candites: {response.function_calls}")
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+        print(f"Response tokens: {response.usage_metadata.candidates_token_count}\n")
 
     if not response.function_calls:
-        return  response.text
+        print (response.text)
+        return
     
-    function_responses = []
-    for function_call in response.function_calls:
-        function_result = call_function(function_call, verbose)
-        if (
-            not function_result.parts
-            or not function_result.parts[0].function_response
-        ):
-            raise Exception("empty function call result")
-        if verbose:
-            print(f"-> {function_result.parts[0].function_response.response}")
-        function_responses.append(function_result)
+    for candidate in response.candidates:
+        messages.append(candidate.content)
 
-    if not function_responses:
-        raise Exception("no function responses generated, exiting.")
+    for function_call in response.function_calls:
+        try:
+            function_result = call_function(function_call, verbose)
+            if verbose:
+                print(f"-> {function_result.parts[0].function_response.response}")
+            messages.append(function_result)
+        except Exception as e:
+            print(f"Error calling function: {e}")
+            messages.append(types.Content(role="function", parts=[types.Part.from_function_response(name=function_call.name, response={"error": str(e)})]))
+        
+    
+    generate_content(client, messages, verbose, iteration + 1)
+
 
 if __name__ == "__main__":
     main()
