@@ -17,6 +17,7 @@ class Calculator:
         if not expression or expression.isspace():
             return None
         tokens = expression.strip().split()
+        print(f'Tokens: {tokens}')
         return self._evaluate_infix(tokens)
 
     def _evaluate_infix(self, tokens):
@@ -24,6 +25,7 @@ class Calculator:
         operators = []
 
         for token in tokens:
+            print(f'Token: {token}, Values: {values}, Operators: {operators}')
             if token in self.operators:
                 while (
                     operators
@@ -57,3 +59,4 @@ class Calculator:
         b = values.pop()
         a = values.pop()
         values.append(self.operators[operator](a, b))
+        print(f'Applied {operator}, Values: {values}')
